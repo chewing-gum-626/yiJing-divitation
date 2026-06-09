@@ -1,0 +1,1 @@
+export const DEFAULT_ANIMATION_DURATION = 0.4;

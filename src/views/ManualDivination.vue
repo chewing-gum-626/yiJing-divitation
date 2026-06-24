@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref, watch, type ComponentPublicInstance } from 'vue';
 import { gsap } from 'gsap';
-import { ArrowUp, CheckCircle2, Droplets, HandCoins, Sparkles } from 'lucide-vue-next';
+import { ArrowUp, CheckCircle2, Droplets, HandCoins, Loader2, Sparkles } from 'lucide-vue-next';
 
 import { COIN_COMBINATION_OPTIONS, type CoinCombination, type YaoInfo } from '@/constants/gua';
-import { useManualGuaStore, type ResultCardPayload } from '@/stores/manualGuaStore';
+import { useManualGuaStore, type LuckType, type ResultCardPayload } from '@/stores/manualGuaStore';
 
 const store = useManualGuaStore();
 const questionInput = ref('');
@@ -12,6 +12,55 @@ const chatContainerRef = ref<HTMLElement | null>(null);
 const messageRefs = ref<HTMLElement[]>([]);
 
 const canSubmitQuestion = computed(() => questionInput.value.trim().length > 0);
+
+const resultCardStyles: Record<
+  LuckType,
+  {
+    shell: string;
+    header: string;
+    badge: string;
+    yaoPanel: string;
+    yaoLine: string;
+    movingDot: string;
+    mutedDot: string;
+    text: string;
+    note: string;
+  }
+> = {
+  ji: {
+    shell: 'bg-gradient-to-br from-emerald-400 via-orange-300 to-yellow-400 text-white shadow-2xl shadow-yellow-500/25 ring-1 ring-yellow-100/80',
+    header: 'bg-gradient-to-br from-emerald-500/95 via-teal-500/90 to-orange-300/95',
+    badge: 'bg-yellow-100 text-amber-700 shadow-lg shadow-yellow-300/40 ring-1 ring-yellow-200',
+    yaoPanel: 'bg-white/18 ring-1 ring-yellow-100/40 shadow-inner shadow-yellow-100/20',
+    yaoLine: 'bg-gradient-to-r from-emerald-200 to-yellow-200 shadow-sm shadow-yellow-100/40',
+    movingDot: 'bg-yellow-200 shadow-lg shadow-yellow-200/60 ring-2 ring-white/70',
+    mutedDot: 'bg-white/25',
+    text: 'text-white drop-shadow-sm',
+    note: 'bg-white/18 text-yellow-50 ring-1 ring-yellow-100/30',
+  },
+  ping: {
+    shell: 'bg-gradient-to-br from-stone-100 via-zinc-100 to-amber-100 text-stone-800 shadow-xl shadow-stone-300/30 ring-1 ring-stone-200',
+    header: 'bg-gradient-to-br from-stone-200 via-zinc-100 to-amber-100',
+    badge: 'bg-stone-700 text-stone-50 shadow-sm ring-1 ring-stone-500/20',
+    yaoPanel: 'bg-white/65 ring-1 ring-stone-200 shadow-inner',
+    yaoLine: 'bg-gradient-to-r from-stone-400 to-amber-500',
+    movingDot: 'bg-stone-600 shadow-sm ring-2 ring-stone-200',
+    mutedDot: 'bg-stone-300',
+    text: 'text-stone-700',
+    note: 'bg-white/70 text-stone-500 ring-1 ring-stone-200',
+  },
+  xiong: {
+    shell: 'bg-gradient-to-br from-slate-950 via-indigo-950 to-zinc-900 text-slate-100 shadow-2xl shadow-indigo-950/50 ring-1 ring-slate-700',
+    header: 'bg-gradient-to-br from-slate-950 via-indigo-950 to-slate-800',
+    badge: 'bg-slate-200 text-slate-950 shadow-lg shadow-slate-950/30 ring-1 ring-slate-400',
+    yaoPanel: 'bg-slate-900/75 ring-1 ring-slate-700 shadow-inner shadow-black/40',
+    yaoLine: 'bg-gradient-to-r from-cyan-900 to-slate-500',
+    movingDot: 'bg-cyan-300 shadow-lg shadow-cyan-500/30 ring-2 ring-slate-500',
+    mutedDot: 'bg-slate-700',
+    text: 'text-slate-200',
+    note: 'bg-slate-900/70 text-slate-400 ring-1 ring-slate-700',
+  },
+};
 
 function setMessageRef(element: Element | ComponentPublicInstance | null, index: number) {
   if (element instanceof HTMLElement) {
@@ -29,6 +78,7 @@ function isResultPayload(payload: unknown): payload is ResultCardPayload {
     payload !== null &&
     'guaName' in payload &&
     'fortune' in payload &&
+    'luckType' in payload &&
     'interpretation' in payload &&
     'yaos' in payload
   );
@@ -36,6 +86,14 @@ function isResultPayload(payload: unknown): payload is ResultCardPayload {
 
 function getYaoSymbol(yao: YaoInfo) {
   return yao.value === 7 || yao.value === 9 ? 'yang' : 'yin';
+}
+
+/**
+ * 根据最终解卦卡片的 luckType 返回对应视觉系统。
+ * 目的：模板里只关注语义状态，具体吉/平/凶的渐变、文字和爻条配色集中维护在映射表中。
+ */
+function getResultCardStyle(payload: ResultCardPayload) {
+  return resultCardStyles[payload.luckType];
 }
 
 function submitQuestion() {
@@ -190,44 +248,69 @@ onMounted(() => {
 
         <div
           v-else-if="message.type === 'result_card' && isResultPayload(message.payload)"
-          class="overflow-hidden rounded-[2rem] bg-slate-950 text-white shadow-soft"
+          class="overflow-hidden rounded-[2rem]"
+          :class="getResultCardStyle(message.payload).shell"
         >
-          <div class="bg-gradient-to-br from-slate-900 via-slate-950 to-brand-600 p-6">
-            <p class="text-xs font-semibold uppercase tracking-[0.28em] text-brand-100">Final Reading</p>
-            <div class="mt-4 flex items-start justify-between gap-4">
+          <div class="relative overflow-hidden p-6" :class="getResultCardStyle(message.payload).header">
+            <div class="absolute -right-10 -top-10 h-36 w-36 rounded-full bg-white/20 blur-3xl" />
+            <div class="absolute -bottom-14 left-8 h-32 w-56 rounded-full bg-white/10 blur-2xl" />
+            <p class="relative text-xs font-semibold uppercase tracking-[0.28em] opacity-80">Final Reading</p>
+            <div class="relative mt-4 flex items-start justify-between gap-4">
               <div>
                 <h2 class="text-3xl font-bold">{{ message.payload.guaName }}</h2>
-                <p class="mt-2 text-sm text-slate-300">问题：{{ message.payload.question }}</p>
+                <p class="mt-2 text-sm opacity-80">问题：{{ message.payload.question }}</p>
               </div>
-              <span class="rounded-full bg-white px-4 py-2 text-sm font-bold text-slate-950">
+              <span class="rounded-full px-4 py-2 text-sm font-bold" :class="getResultCardStyle(message.payload).badge">
                 {{ message.payload.fortune }}
               </span>
             </div>
           </div>
 
           <div class="grid gap-6 p-6 sm:grid-cols-[0.9fr_1.1fr]">
-            <div class="flex flex-col-reverse gap-3 rounded-3xl bg-white/8 p-5 ring-1 ring-white/10">
+            <div class="flex flex-col-reverse gap-3 rounded-3xl p-5" :class="getResultCardStyle(message.payload).yaoPanel">
               <div
                 v-for="(yao, yaoIndex) in message.payload.yaos"
                 :key="`${yao.name}-${yaoIndex}`"
                 class="flex items-center gap-3"
               >
-                <span class="w-6 text-right text-xs text-slate-500">{{ yaoIndex + 1 }}</span>
+                <span class="w-6 text-right text-xs opacity-60">{{ yaoIndex + 1 }}</span>
                 <div class="flex h-7 flex-1 items-center">
-                  <div v-if="getYaoSymbol(yao) === 'yang'" class="h-3 w-full rounded-full bg-white" />
+                  <div
+                    v-if="getYaoSymbol(yao) === 'yang'"
+                    class="h-3 w-full rounded-full"
+                    :class="getResultCardStyle(message.payload).yaoLine"
+                  />
                   <div v-else class="flex w-full gap-5">
-                    <div class="h-3 flex-1 rounded-full bg-white" />
-                    <div class="h-3 flex-1 rounded-full bg-white" />
+                    <div class="h-3 flex-1 rounded-full" :class="getResultCardStyle(message.payload).yaoLine" />
+                    <div class="h-3 flex-1 rounded-full" :class="getResultCardStyle(message.payload).yaoLine" />
                   </div>
                 </div>
-                <span class="h-2.5 w-2.5 rounded-full" :class="yao.isChanging ? 'bg-orange-400' : 'bg-white/15'" />
+                <span
+                  class="h-2.5 w-2.5 rounded-full"
+                  :class="yao.isChanging ? getResultCardStyle(message.payload).movingDot : getResultCardStyle(message.payload).mutedDot"
+                />
               </div>
             </div>
 
             <div class="flex flex-col justify-between gap-5">
-              <p class="text-base leading-8 text-slate-100">{{ message.payload.interpretation }}</p>
-              <div class="rounded-2xl bg-white/8 px-4 py-3 text-sm text-slate-300 ring-1 ring-white/10">
-                动爻以橙色小圆点标记。此结果仅作轻量参考，适合用于整理思路。
+              <div v-if="message.payload.isLoading" class="flex min-h-36 flex-col items-center justify-center gap-3 rounded-3xl bg-white/15 p-5 ring-1 ring-white/20">
+                <Loader2 class="animate-spin" :size="28" />
+                <p class="text-sm opacity-80">正在结合问题与卦象生成 AI 解读...</p>
+              </div>
+
+              <p v-else class="text-base leading-8" :class="getResultCardStyle(message.payload).text">
+                {{ message.payload.interpretation }}
+              </p>
+
+              <div
+                v-if="message.payload.errorMessage"
+                class="rounded-2xl bg-white/15 px-4 py-3 text-sm ring-1 ring-white/20"
+              >
+                {{ message.payload.errorMessage }}
+              </div>
+
+              <div class="rounded-2xl px-4 py-3 text-sm" :class="getResultCardStyle(message.payload).note">
+                动爻以高亮小圆点标记。此结果仅作轻量参考，适合用于整理思路。
               </div>
             </div>
           </div>

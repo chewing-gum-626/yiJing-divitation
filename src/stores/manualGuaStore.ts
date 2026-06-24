@@ -2,17 +2,31 @@ import { defineStore } from 'pinia';
 
 import { type CoinCombination, deriveYao, type YaoInfo } from '@/constants/gua';
 
+export type LuckType = 'ji' | 'ping' | 'xiong';
 type Sender = 'system' | 'user';
 type MessageType = 'text' | 'guide' | 'coin_selector' | 'result_card';
 type CurrentStep = 'ask_question' | 'showing_guide' | 'rolling' | 'finished';
 type FortuneLevel = '吉' | '平' | '凶';
 
+interface DeepSeekChoice {
+  message?: {
+    content?: string;
+  };
+}
+
+interface DeepSeekChatCompletionResponse {
+  choices?: DeepSeekChoice[];
+}
+
 interface ResultCardPayload {
   guaName: string;
   fortune: FortuneLevel;
+  luckType: LuckType;
   interpretation: string;
   yaos: YaoInfo[];
   question: string;
+  isLoading: boolean;
+  errorMessage: string;
 }
 
 interface CoinSelectorPayload {
@@ -30,14 +44,25 @@ export interface Message {
 interface ManualGuaState {
   currentStep: CurrentStep;
   question: string;
+  userQuestion: string;
   currentRound: number;
   yaos: YaoInfo[];
   messages: Message[];
 }
 
 const GUA_NAMES = ['风泽中孚', '山火贲', '水天需', '雷风恒', '地山谦', '火地晋'];
-const FORTUNES: FortuneLevel[] = ['吉', '平', '凶'];
+const LUCK_TYPE_LABELS: Record<LuckType, FortuneLevel> = {
+  ji: '吉',
+  ping: '平',
+  xiong: '凶',
+};
+const DEFAULT_INTERPRETATION = 'AI 解卦正在生成中，请稍候片刻。';
+const API_KEY = '';
 
+/**
+ * 创建聊天消息对象。
+ * sender 表示消息归属，type 决定组件渲染分支，payload 承载爻位、选择器或最终解卦卡片数据。
+ */
 function createMessage(sender: Sender, type: MessageType, content: string, payload?: Message['payload']): Message {
   return {
     id: crypto.randomUUID(),
@@ -48,19 +73,50 @@ function createMessage(sender: Sender, type: MessageType, content: string, paylo
   };
 }
 
-function createResultCard(question: string, yaos: YaoInfo[]): ResultCardPayload {
+/**
+ * 使用六爻数值快速推导一个本地卦名。
+ * 这里先用轻量映射保证离线也能完成卡片生成，后续可替换为完整 64 卦映射。
+ */
+function deriveGuaName(yaos: YaoInfo[]): string {
+  const valueSum = yaos.reduce((sum, yao) => sum + yao.value, 0);
+  return GUA_NAMES[valueSum % GUA_NAMES.length];
+}
+
+/**
+ * 根据手动六爻的动爻数量和值域推导吉凶。
+ * 目的：DeepSeek Prompt 需要明确卦性，当前先用简单稳定规则模拟，避免接入完整卦变逻辑前无状态可用。
+ */
+function deriveLuckType(yaos: YaoInfo[]): LuckType {
   const changingCount = yaos.filter((yao) => yao.isChanging).length;
   const valueSum = yaos.reduce((sum, yao) => sum + yao.value, 0);
-  const guaName = GUA_NAMES[valueSum % GUA_NAMES.length];
-  const fortune = changingCount >= 3 ? '平' : FORTUNES[valueSum % FORTUNES.length];
+
+  if (changingCount >= 4) {
+    return 'xiong';
+  }
+
+  if (changingCount >= 2) {
+    return 'ping';
+  }
+
+  return valueSum % 3 === 0 ? 'ji' : valueSum % 3 === 1 ? 'ping' : 'xiong';
+}
+
+/**
+ * 生成结果卡片初始数据。
+ * 卡片会先以 loading 状态插入聊天流，随后 fetchGuaInterpretation 完成后再更新 interpretation。
+ */
+function createResultCard(question: string, yaos: YaoInfo[]): ResultCardPayload {
+  const luckType = deriveLuckType(yaos);
 
   return {
-    guaName,
-    fortune,
+    guaName: deriveGuaName(yaos),
+    fortune: LUCK_TYPE_LABELS[luckType],
+    luckType,
     question,
     yaos,
-    interpretation:
-      '眼前的变化正在成形，适合先稳住节奏，再顺势推进。别急着下结论，整理信息后行动，会更容易看见清晰方向。',
+    interpretation: DEFAULT_INTERPRETATION,
+    isLoading: true,
+    errorMessage: '',
   };
 }
 
@@ -75,10 +131,25 @@ function getCombinationLabel(combination: CoinCombination): string {
   return labels[combination];
 }
 
+/**
+ * 从 DeepSeek 返回体中提取最终文本。
+ * response 可能因为网络或鉴权异常缺少 choices，因此这里必须做完整类型收窄并提供兜底错误。
+ */
+function extractDeepSeekContent(response: DeepSeekChatCompletionResponse): string {
+  const content = response.choices?.[0]?.message?.content?.trim();
+
+  if (!content) {
+    throw new Error('AI 未返回有效解读内容。');
+  }
+
+  return content;
+}
+
 export const useManualGuaStore = defineStore('manualGua', {
   state: (): ManualGuaState => ({
     currentStep: 'ask_question',
     question: '',
+    userQuestion: '',
     currentRound: 1,
     yaos: [],
     messages: [],
@@ -87,11 +158,10 @@ export const useManualGuaStore = defineStore('manualGua', {
     initSession() {
       this.currentStep = 'ask_question';
       this.question = '';
+      this.userQuestion = '';
       this.currentRound = 1;
       this.yaos = [];
-      this.messages = [
-        createMessage('system', 'text', '你好，请问你今天想要占卜什么问题？'),
-      ];
+      this.messages = [createMessage('system', 'text', '你好，请问你今天想要占卜什么问题？')];
     },
 
     submitQuestion(question: string) {
@@ -102,6 +172,7 @@ export const useManualGuaStore = defineStore('manualGua', {
       }
 
       this.question = normalizedQuestion;
+      this.userQuestion = normalizedQuestion;
       this.currentStep = 'showing_guide';
       this.messages.push(createMessage('user', 'text', normalizedQuestion));
       this.messages.push(
@@ -127,6 +198,56 @@ export const useManualGuaStore = defineStore('manualGua', {
       );
     },
 
+    /**
+     * 调用 DeepSeek 非流式接口生成手动起卦解读。
+     * resultMessageId 用于定位聊天流中的结果卡片，避免异步返回后更新错消息；API_KEY 留空由使用者自行填写。
+     */
+    async fetchGuaInterpretation(resultMessageId: string) {
+      const resultMessage = this.messages.find((message) => message.id === resultMessageId);
+      const payload = resultMessage?.payload;
+
+      if (!payload || !('guaName' in payload) || !('luckType' in payload)) {
+        return;
+      }
+
+      try {
+        const response = await fetch('https://api.deepseek.com/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${API_KEY}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: 'deepseek-chat',
+            temperature: 0.7,
+            stream: false,
+            messages: [
+              {
+                role: 'system',
+                content: `你是一位专业易经解卦师，语言现代、简洁、吉利、不迷信，80～100字。
+用户问题：${payload.question}
+占得卦象：${payload.guaName}
+卦性：${payload.fortune}（吉/平/凶）
+请结合问题与卦意给出简明运势指引，语气温和专业。`,
+              },
+            ],
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error('AI 解读暂时不可用，请稍后再试。');
+        }
+
+        const data = (await response.json()) as DeepSeekChatCompletionResponse;
+        payload.interpretation = extractDeepSeekContent(data);
+      } catch (error) {
+        payload.errorMessage = error instanceof Error ? error.message : 'AI 解读失败，请稍后再试。';
+        payload.interpretation = '暂时无法连接 AI 解卦服务。你可以先参考卦象本身：稳住心绪，聚焦当下最重要的一步，避免在信息不足时做过度判断。';
+      } finally {
+        payload.isLoading = false;
+      }
+    },
+
     recordCoinResult(combination: CoinCombination) {
       if (this.currentStep !== 'rolling' || this.yaos.length >= 6) {
         return;
@@ -139,10 +260,12 @@ export const useManualGuaStore = defineStore('manualGua', {
       this.messages.push(createMessage('user', 'text', `第 ${round} 次：${getCombinationLabel(combination)}（${yao.name}）`, yao));
 
       if (this.yaos.length >= 6) {
-        const resultCard = createResultCard(this.question, this.yaos);
+        const resultCard = createResultCard(this.userQuestion, this.yaos);
+        const resultMessage = createMessage('system', 'result_card', '六爻已成，这是本次卦象的 AI 解读。', resultCard);
 
         this.currentStep = 'finished';
-        this.messages.push(createMessage('system', 'result_card', '六爻已成，这是本次卦象的简明解读。', resultCard));
+        this.messages.push(resultMessage);
+        void this.fetchGuaInterpretation(resultMessage.id);
         return;
       }
 
@@ -156,4 +279,4 @@ export const useManualGuaStore = defineStore('manualGua', {
   },
 });
 
-export type { CoinSelectorPayload, CurrentStep, ResultCardPayload };
+export type { CoinSelectorPayload, CurrentStep, FortuneLevel, ResultCardPayload };

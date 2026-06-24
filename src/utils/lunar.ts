@@ -172,6 +172,10 @@ const LUNAR_YEAR_DATA: Record<number, number> = {
 const BASE_DATE_UTC = Date.UTC(1900, 0, 31);
 const BASE_GANZHI_DAY_OFFSET = 40;
 
+/**
+ * 获取指定年份的农历压缩码。
+ * 数据码按传统农历算法编码大小月、闰月位置和闰月天数，所有转换逻辑都基于该码完成，无需外部农历库。
+ */
 function getLunarYearCode(year: number): number {
   const code = LUNAR_YEAR_DATA[year];
 
@@ -200,6 +204,10 @@ function getLunarMonthDays(year: number, month: number): number {
   return (getLunarYearCode(year) & (0x10000 >> month)) === 0 ? 29 : 30;
 }
 
+/**
+ * 计算农历年总天数。
+ * 常规 12 个月先按 29 天计为 348 天，再通过年份压缩码逐位判断哪些月份是 30 天，最后叠加闰月天数。
+ */
 function getLunarYearDays(year: number): number {
   let days = 348;
   const code = getLunarYearCode(year);
@@ -221,6 +229,11 @@ function getGanZhi(index: number): string {
   return `${HEAVENLY_STEMS[index % 10]}${EARTHLY_BRANCHES[index % 12]}`;
 }
 
+/**
+ * 将公历日期转换为农历日期和干支信息。
+ * 算法从 1900-01-31（农历 1900 年正月初一）开始计算相差天数，逐年、逐月扣减得到农历年月日；
+ * inputDate 是本地日期对象，函数内部只取年月日并转 UTC 零点，避免时区小时差影响自然日计算。
+ */
 export function getLunarDateInfo(inputDate = new Date()): LunarDateInfo {
   let offsetDays = Math.floor((getUtcStartOfDate(inputDate) - BASE_DATE_UTC) / 86_400_000);
 
@@ -245,6 +258,7 @@ export function getLunarDateInfo(inputDate = new Date()): LunarDateInfo {
   while (offsetDays >= monthDays) {
     offsetDays -= monthDays;
 
+    // 若当前月后存在闰月，第一次经过该月时不立刻推进月份，而是切入“闰同月”的天数计算。
     if (leapMonth === lunarMonth && !isLeapMonth) {
       isLeapMonth = true;
     } else {

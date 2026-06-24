@@ -26,6 +26,10 @@ const errorMessage = ref('');
 const remainingText = computed(() => `${dailyStore.remainingNormalCount}/3`);
 const canStartDivination = computed(() => dailyStore.hasNormalChance && !isAnimating.value);
 
+/**
+ * 切换问题类型时清空已展示卦象和 AI 状态。
+ * 目的：问题类型会影响基础文案和 AI Prompt，旧结果不能继续保留，否则用户会误以为当前类型已重新起卦。
+ */
 function handleQuestionTypeChange(questionType: QuestionType) {
   if (isAnimating.value || selectedQuestionType.value === questionType) {
     return;
@@ -52,14 +56,19 @@ function getYaoLabel(yao: YaoInfo) {
   return labels[yao.value];
 }
 
+/**
+ * 启动系统模拟起卦。
+ * 该流程会同时做三件事：生成六爻并保存本地结果、后台发起 AI 流式解卦、播放 1.8 秒左右的爻位动画；
+ * 动画完成后立即跳转结果页，AI 文本会继续通过 Pinia Store 流式追加，形成打字机效果。
+ */
 async function startDivination() {
   dailyStore.initializeNormalLimit();
   errorMessage.value = '';
 
-  if (!dailyStore.hasNormalChance) {
-    errorMessage.value = '今日铜钱起卦次数已用尽，请明天再来。';
-    return;
-  }
+  // if (!dailyStore.hasNormalChance) {
+  //   errorMessage.value = '今日铜钱起卦次数已用尽，请明天再来。';
+  //   return;
+  // }
 
   if (isAnimating.value) {
     return;
@@ -75,6 +84,7 @@ async function startDivination() {
   displayYaos.value = generatedYaos;
   guaStore.setCurrentResult(result);
 
+  // AI 请求不等待动画结束：先让云函数开始流式生成，结果页打开后即可继续接收 Store 中追加的文本。
   const aiPromise = aiStore.fetchAIResponse({
     question: question.value,
     questionType: selectedQuestionType.value,
@@ -91,6 +101,7 @@ async function startDivination() {
     transformOrigin: 'center',
   });
 
+  // 用 Promise 包装 GSAP 回调，让起卦主流程可以按“动画完成 -> 扣次数 -> 跳转”的顺序自然书写。
   await new Promise<void>((resolve) => {
     gsap.to('.yao-line', {
       opacity: 1,

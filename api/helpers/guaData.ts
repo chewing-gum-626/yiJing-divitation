@@ -4,6 +4,10 @@ export interface ServerGuaText {
   plain: string;
 }
 
+/**
+ * 八卦顺序必须和 HEXAGRAM_TEXT_MATRIX 的行列保持一致。
+ * bits 使用“下爻到上爻”的 0/1 表示法，和前端生成的 originalGuaId/changedGuaId 完全一致。
+ */
 interface TrigramDefinition {
   bits: string;
   symbol: string;
@@ -26,6 +30,7 @@ const TRIGRAM_ORDER: TrigramDefinition[] = [
   { bits: '000', symbol: '地' },
 ];
 
+// 64 卦矩阵：外层按上卦排列，内层按下卦排列，用于服务端根据 6 位卦 ID 还原卦名和卦辞。
 const HEXAGRAM_TEXT_MATRIX: HexagramTextSeed[][] = [
   [
     { name: '乾为天', judgment: '乾：元，亨，利，贞。', plain: '阳气充足，象征开创、主动与上升，宜正道进取。' },
@@ -109,6 +114,10 @@ const HEXAGRAM_TEXT_MATRIX: HexagramTextSeed[][] = [
   ],
 ];
 
+/**
+ * 将“上卦 x 下卦”矩阵展开成以 6 位卦 ID 为 key 的查表对象。
+ * 这样云函数只信任前端传来的 originalGuaId/changedGuaId，再由服务端补齐卦辞，降低 Prompt 被篡改的风险。
+ */
 export const SERVER_GUA_DATA: Record<string, ServerGuaText> = Object.fromEntries(
   HEXAGRAM_TEXT_MATRIX.flatMap((row, upperIndex) =>
     row.map((seed, lowerIndex) => {
@@ -119,6 +128,10 @@ export const SERVER_GUA_DATA: Record<string, ServerGuaText> = Object.fromEntries
   ),
 ) as Record<string, ServerGuaText>;
 
+/**
+ * 安全读取云函数卦象数据。
+ * guaId 必须是前端起卦算法生成的 6 位阴阳编码，找不到时返回 null，让调用方明确进入错误分支。
+ */
 export function getServerGuaText(guaId: string): ServerGuaText | null {
   return SERVER_GUA_DATA[guaId] ?? null;
 }

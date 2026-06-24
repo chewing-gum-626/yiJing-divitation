@@ -232,6 +232,81 @@ export interface DailyGuaInterpretation {
 
 请一步一步为我生成完整的后端云函数代码和前端改造方案。
 
+---------------------------------------------
+
+请基于我之前已经实现的「Vue3 + TypeScript + Tailwind + Pinia + GSAP」手动起卦功能，只优化最终解卦卡片部分，按照以下需求进行升级改造：
+需求总述
+在原有六爻记录完成后，替换原来的模拟解卦逻辑，改为：
+调用 DeepSeek-V3 API（/v1/chat/completions） 生成真正结合用户问题的解卦内容
+根据卦象吉凶（吉 / 平 / 凶）自动切换三种完全不同的卡片风格
+保持原有动画、聊天流、交互逻辑不变，只升级结果卡片
+
+一、API 调用要求
+使用 fetch 调用 https://api.deepseek.com/v1/chat/completions
+请求头携带 Authorization: Bearer {API_KEY}（留空让用户自行填写）
+请求体结构：
+model: "deepseek-chat"
+messages: 按以下 system prompt 构造
+temperature: 0.7
+stream: false（不使用流式）
+等待接口返回完整结果后再渲染最终解卦卡片
+加载期间显示简约加载动画
+System Prompt 模板如下：
+你是一位专业易经解卦师，语言现代、简洁、吉利、不迷信，80～100字。
+用户问题：{{question}}
+占得卦象：{{guaName}}
+卦性：{{luckType}}（吉/平/凶）
+请结合问题与卦意给出简明运势指引，语气温和专业。
+二、吉凶三色卡片风格（必须严格实现）
+1. 吉卦
+主色调：青碧、暖橙、鎏金渐变
+背景：明亮、朝阳、祥云、平地感
+卡片：亮边、轻微金色光晕、圆角柔和
+文字：白色 / 浅金，清晰明亮
+爻条：青绿 / 金色，动爻高亮
+2. 平卦
+主色调：米赭、浅灰、素雅中性
+背景：远山、静水、草木淡影
+卡片：哑光质感、低对比
+文字：深灰，温和稳重
+爻条：灰棕系，简约中性
+3. 凶卦
+主色调：墨黑、暗靛蓝、冷灰
+背景：乌云、深水、断崖暗纹
+卡片：暗压纹质感、冷色阴影
+文字：淡白 / 冷灰，高对比但不刺眼
+爻条：深青 / 黑灰，动爻用冷色标记
+三、代码修改范围
+src/stores/manualGuaStore.ts
+新增 luckType: 'ji' | 'ping' | 'xiong' 状态
+新增 userQuestion 存储用户问题
+新增异步 Action fetchGuaInterpretation()
+六爻完成后调用 DeepSeek API 获取解读
+根据卦象逻辑判断吉凶（可简单模拟或后续扩展）
+src/views/ManualDivination.vue
+重构最终解卦卡片，使用动态 class 根据 luckType 切换风格
+吉 / 平 / 凶三套完整 Tailwind 样式
+保持六爻图形化展示：阳爻实线、阴爻虚线、动爻标记
+加载状态优化
+保持 GSAP 入场动画不变
+类型补充
+新增 LuckType 联合类型
+接口返回结构严格定义 TypeScript interface
+不允许 any
+四、风格与动画约束
+全程只使用 Tailwind CSS，不写额外 CSS
+卡片渐变、光晕、纹理均用 Tailwind 实现
+新卡片依然使用 GSAP 淡入上滑动画
+聊天流滚动逻辑保持不变
+底部 “一事不二占” 提示保持不变
+五、交付要求
+请直接输出完整可替换的代码文件，包括：
+升级后的 manualGuaStore.ts
+升级后的解卦卡片部分（完整组件代码）
+所有新增类型定义
+接口调用代码（含 fetch + headers + body）
+保持结构清晰、类型完整、可直接运行。
+
 
 
 

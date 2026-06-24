@@ -11,6 +11,7 @@ const guaStore = useGuaStore();
 
 const result = computed(() => (guaStore.currentResult ? resolveGuaResult(guaStore.currentResult) : null));
 
+// 基础卦象吉凶来自本地静态文案，用于 AI 尚未返回状态时提供稳定的结果兜底。
 const outcomeMeta: Record<GuaOutcome, { label: string; className: string }> = {
   good: {
     label: '吉',
@@ -26,6 +27,7 @@ const outcomeMeta: Record<GuaOutcome, { label: string; className: string }> = {
   },
 };
 
+// AI 状态用于控制徽章和解读卡片底色；吉/平/凶分别对应正向、观望、谨慎三种视觉语义。
 const aiStatusMeta: Record<AIGuaStatus, { className: string; glowClassName: string }> = {
   吉: {
     className: 'bg-emerald-500 text-white shadow-emerald-500/25',
@@ -41,6 +43,7 @@ const aiStatusMeta: Record<AIGuaStatus, { className: string; glowClassName: stri
   },
 };
 
+// DeepSeek 首个 chunk 可能还没带回 [STATUS:*]，此时临时按“平”渲染，避免模板访问空 key。
 const currentAIStatus = computed<AIGuaStatus>(() => aiStore.guaStatus || '平');
 </script>
 

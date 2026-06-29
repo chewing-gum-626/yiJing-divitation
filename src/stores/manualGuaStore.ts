@@ -8,14 +8,9 @@ type MessageType = 'text' | 'guide' | 'coin_selector' | 'result_card';
 type CurrentStep = 'ask_question' | 'showing_guide' | 'rolling' | 'finished';
 type FortuneLevel = '吉' | '平' | '凶';
 
-interface DeepSeekChoice {
-  message?: {
-    content?: string;
-  };
-}
-
-interface DeepSeekChatCompletionResponse {
-  choices?: DeepSeekChoice[];
+interface ManualDivineResponse {
+  interpretation?: string;
+  message?: string;
 }
 
 interface ResultCardPayload {
@@ -57,7 +52,6 @@ const LUCK_TYPE_LABELS: Record<LuckType, FortuneLevel> = {
   xiong: '凶',
 };
 const DEFAULT_INTERPRETATION = 'AI 解卦正在生成中，请稍候片刻。';
-const API_KEY = '';
 
 /**
  * 创建聊天消息对象。
@@ -131,20 +125,6 @@ function getCombinationLabel(combination: CoinCombination): string {
   return labels[combination];
 }
 
-/**
- * 从 DeepSeek 返回体中提取最终文本。
- * response 可能因为网络或鉴权异常缺少 choices，因此这里必须做完整类型收窄并提供兜底错误。
- */
-function extractDeepSeekContent(response: DeepSeekChatCompletionResponse): string {
-  const content = response.choices?.[0]?.message?.content?.trim();
-
-  if (!content) {
-    throw new Error('AI 未返回有效解读内容。');
-  }
-
-  return content;
-}
-
 export const useManualGuaStore = defineStore('manualGua', {
   state: (): ManualGuaState => ({
     currentStep: 'ask_question',
@@ -199,8 +179,8 @@ export const useManualGuaStore = defineStore('manualGua', {
     },
 
     /**
-     * 调用 DeepSeek 非流式接口生成手动起卦解读。
-     * resultMessageId 用于定位聊天流中的结果卡片，避免异步返回后更新错消息；API_KEY 留空由使用者自行填写。
+     * 通过服务端接口生成手动起卦解读。
+     * resultMessageId 用于定位聊天流中的结果卡片，避免异步返回后更新错消息。
      */
     async fetchGuaInterpretation(resultMessageId: string) {
       const resultMessage = this.messages.find((message) => message.id === resultMessageId);
@@ -211,35 +191,28 @@ export const useManualGuaStore = defineStore('manualGua', {
       }
 
       try {
-        const response = await fetch('https://api.deepseek.com/v1/chat/completions', {
+        const response = await fetch('/api/manual-divine', {
           method: 'POST',
           headers: {
-            Authorization: `Bearer ${API_KEY}`,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            model: 'deepseek-chat',
-            temperature: 0.7,
-            stream: false,
-            messages: [
-              {
-                role: 'system',
-                content: `你是一位专业易经解卦师，语言现代、简洁、吉利、不迷信，80～100字。
-用户问题：${payload.question}
-占得卦象：${payload.guaName}
-卦性：${payload.fortune}（吉/平/凶）
-请结合问题与卦意给出简明运势指引，语气温和专业。`,
-              },
-            ],
+            question: payload.question,
+            guaName: payload.guaName,
+            luckType: payload.luckType,
           }),
         });
+        const data = (await response.json()) as ManualDivineResponse;
 
         if (!response.ok) {
-          throw new Error('AI 解读暂时不可用，请稍后再试。');
+          throw new Error(data.message || 'AI 解读暂时不可用，请稍后再试。');
         }
 
-        const data = (await response.json()) as DeepSeekChatCompletionResponse;
-        payload.interpretation = extractDeepSeekContent(data);
+        if (!data.interpretation) {
+          throw new Error('AI 未返回有效解读内容。');
+        }
+
+        payload.interpretation = data.interpretation;
       } catch (error) {
         payload.errorMessage = error instanceof Error ? error.message : 'AI 解读失败，请稍后再试。';
         payload.interpretation = '暂时无法连接 AI 解卦服务。你可以先参考卦象本身：稳住心绪，聚焦当下最重要的一步，避免在信息不足时做过度判断。';

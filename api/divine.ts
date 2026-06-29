@@ -1,7 +1,7 @@
 import { Ratelimit } from '@upstash/ratelimit';
 import { Redis } from '@upstash/redis';
 
-import { getServerGuaText } from './helpers/guaData';
+import { getServerGuaText } from './helpers/guaData.js';
 
 export const config = {
   runtime: 'edge',

@@ -118,19 +118,20 @@ const cleanAIResult = computed(() => aiStore.aiResult.replace(/^\s*\[STATUS:(吉
 
         <div class="rounded-3xl bg-gradient-to-br p-5 text-left ring-1 ring-white/90" :class="aiStatusMeta[currentAIStatus].glowClassName">
           <div class="mb-3 flex items-center justify-between gap-3">
+            <p class="text-sm font-semibold text-slate-700">AI 动态解卦</p>
             <div class="flex items-center gap-2">
-              <p class="text-sm font-semibold text-slate-700">AI 动态解卦</p>
-              <span
-                v-if="aiStore.guaStatus"
-                class="inline-flex items-center gap-1.5 rounded-full bg-white/80 px-2.5 py-1 text-xs font-bold text-slate-700 shadow-sm ring-1 ring-white"
-              >
-                <img :src="aiStatusMeta[currentAIStatus].icon" :alt="`${currentAIStatus}卦图标`" class="h-4 w-4" />
-                {{ currentAIStatus }}
+              <!-- AI 解卦完成后展示状态图标+文字，流式生成中展示加载提示 -->
+              <span v-if="aiStore.isStreaming" class="rounded-full bg-white/80 px-3 py-1 text-xs font-semibold text-brand-600 ring-1 ring-white">
+                正在生成中...
               </span>
+              <div
+                v-if="aiStore.guaStatus"
+                class="flex items-center gap-1.5"
+              >
+                <img :src="aiStatusMeta[currentAIStatus].icon" :alt="currentAIStatus" class="h-8 w-8 object-contain" />
+                <span class="text-base font-bold text-slate-700">{{ currentAIStatus }}</span>
+              </div>
             </div>
-            <span v-if="aiStore.isStreaming" class="rounded-full bg-white/80 px-3 py-1 text-xs font-semibold text-brand-600 ring-1 ring-white">
-              正在生成中...
-            </span>
           </div>
           <p class="min-h-32 whitespace-pre-wrap leading-8 text-slate-700">
             {{ cleanAIResult || 'AI 正在结合本卦、变卦和你的问题生成专属解读...' }}

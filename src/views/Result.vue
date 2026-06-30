@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 
-import statusBadIcon from '@/assets/images/xiong.png';
-import statusGoodIcon from '@/assets/images/ji.png';
-import statusNeutralIcon from '@/assets/images/ping.png';
+import jiIcon from '@/assets/images/ji.png';
+import pingIcon from '@/assets/images/ping.png';
+import xiongIcon from '@/assets/images/xiong.png';
 import { resolveGuaResult } from '@/services/guaService';
 import { useAIStore, type AIGuaStatus } from '@/stores/aiStore';
 import { useGuaStore } from '@/stores/guaStore';
@@ -30,28 +30,27 @@ const outcomeMeta: Record<GuaOutcome, { label: string; className: string }> = {
   },
 };
 
-// AI 状态用于控制徽章、解读卡片底色和正文中的状态图标；吉/平/凶分别对应正向、观望、谨慎三种视觉语义。
+// AI 状态用于控制徽章、解读卡片底色和正文中的状态图标；吉/平/凶分别对应 ji.png、ping.png、xiong.png。
 const aiStatusMeta: Record<AIGuaStatus, { className: string; glowClassName: string; icon: string }> = {
   吉: {
     className: 'bg-emerald-500 text-white shadow-emerald-500/25',
     glowClassName: 'from-emerald-100 via-white to-brand-50',
-    icon: statusGoodIcon,
+    icon: jiIcon,
   },
   平: {
     className: 'bg-amber-500 text-white shadow-amber-500/25',
     glowClassName: 'from-amber-100 via-white to-orange-50',
-    icon: statusNeutralIcon,
+    icon: pingIcon,
   },
   凶: {
     className: 'bg-rose-500 text-white shadow-rose-500/25',
     glowClassName: 'from-rose-100 via-white to-orange-50',
-    icon: statusBadIcon,
+    icon: xiongIcon,
   },
 };
 
 // DeepSeek 首个 chunk 可能还没带回 [STATUS:*]，此时临时按“平”渲染，避免模板访问空 key。
 const currentAIStatus = computed<AIGuaStatus>(() => aiStore.guaStatus || '平');
-  console.log(aiStore);
 
 // 后端流式内容会把 [STATUS:吉/平/凶] 拼在正文前，页面展示时移除原始标记，改由状态图标与文字承载结果。
 const cleanAIResult = computed(() => aiStore.aiResult.replace(/^\s*\[STATUS:(吉|平|凶)\]\s*/u, ''));

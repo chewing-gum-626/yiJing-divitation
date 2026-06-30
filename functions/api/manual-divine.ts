@@ -80,10 +80,15 @@ function extractInterpretation(data: DeepSeekChatCompletionResponse): string {
 
 /**
  * EdgeOne Pages 手动起卦非流式 AI 解读入口。
- * 使用 onRequestPost 将 functions/api/manual-divine.ts 映射为 /api/manual-divine，并通过 context.env 读取平台环境变量。
+ * 统一使用 onRequest 做方法分发，避免平台优先匹配通用入口时绕过 onRequestPost 导致 POST 请求被误判为 405。
  */
-export async function onRequestPost(context: EdgeOnePagesContext): Promise<Response> {
+export async function onRequest(context: EdgeOnePagesContext): Promise<Response> {
   const { request, env } = context;
+
+  if (request.method !== 'POST') {
+    return createJsonResponse({ message: 'Method Not Allowed' }, 405);
+  }
+
   const deepSeekApiKey = env.DEEPSEEK_API_KEY;
 
   if (!deepSeekApiKey) {
@@ -127,12 +132,4 @@ export async function onRequestPost(context: EdgeOnePagesContext): Promise<Respo
     const message = error instanceof Error ? error.message : 'AI 解读失败，请稍后再试。';
     return createJsonResponse({ message }, 400);
   }
-}
-
-/**
- * 非 POST 请求统一返回 405。
- * 保持 JSON 错误结构一致，避免 EdgeOne 默认错误页影响前端错误处理。
- */
-export function onRequest(): Response {
-  return createJsonResponse({ message: 'Method Not Allowed' }, 405);
 }

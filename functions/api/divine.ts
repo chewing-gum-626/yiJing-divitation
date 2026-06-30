@@ -142,10 +142,15 @@ async function applyRateLimit(request: Request, env: EdgeOnePagesEnv): Promise<R
 
 /**
  * EdgeOne Pages AI 解卦函数入口。
- * 这里使用 onRequestPost 让文件路径 functions/api/divine.ts 映射为 /api/divine，并只响应 POST 请求。
+ * 统一使用 onRequest 做方法分发，避免平台优先匹配通用入口时绕过 onRequestPost 导致 POST 请求被误判为 405。
  */
-export async function onRequestPost(context: EdgeOnePagesContext): Promise<Response> {
+export async function onRequest(context: EdgeOnePagesContext): Promise<Response> {
   const { request, env } = context;
+
+  if (request.method !== 'POST') {
+    return createJsonResponse({ message: 'Method Not Allowed' }, 405);
+  }
+
   const deepSeekApiKey = env.DEEPSEEK_API_KEY;
 
   if (!deepSeekApiKey) {
@@ -200,12 +205,4 @@ export async function onRequestPost(context: EdgeOnePagesContext): Promise<Respo
     const message = error instanceof Error ? error.message : 'AI 解卦请求失败，请稍后再试。';
     return createJsonResponse({ message }, 400);
   }
-}
-
-/**
- * 非 POST 请求统一返回 405。
- * 明确补齐 onRequest，可避免平台对未实现方法返回默认 HTML，便于前端和调试工具稳定读取 JSON。
- */
-export function onRequest(): Response {
-  return createJsonResponse({ message: 'Method Not Allowed' }, 405);
 }

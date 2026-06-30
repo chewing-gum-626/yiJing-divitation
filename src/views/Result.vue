@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 
-import statusBadIcon from '@/assets/status-bad.svg';
-import statusGoodIcon from '@/assets/status-good.svg';
-import statusNeutralIcon from '@/assets/status-neutral.svg';
+import statusBadIcon from '@/assets/images/xiong.png';
+import statusGoodIcon from '@/assets/images/ji.png';
+import statusNeutralIcon from '@/assets/images/ping.png';
 import { resolveGuaResult } from '@/services/guaService';
 import { useAIStore, type AIGuaStatus } from '@/stores/aiStore';
 import { useGuaStore } from '@/stores/guaStore';
@@ -51,6 +51,7 @@ const aiStatusMeta: Record<AIGuaStatus, { className: string; glowClassName: stri
 
 // DeepSeek 首个 chunk 可能还没带回 [STATUS:*]，此时临时按“平”渲染，避免模板访问空 key。
 const currentAIStatus = computed<AIGuaStatus>(() => aiStore.guaStatus || '平');
+  console.log(aiStore);
 
 // 后端流式内容会把 [STATUS:吉/平/凶] 拼在正文前，页面展示时移除原始标记，改由状态图标与文字承载结果。
 const cleanAIResult = computed(() => aiStore.aiResult.replace(/^\s*\[STATUS:(吉|平|凶)\]\s*/u, ''));

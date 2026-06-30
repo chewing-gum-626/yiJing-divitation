@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 
+import statusBadIcon from '@/assets/status-bad.svg';
+import statusGoodIcon from '@/assets/status-good.svg';
+import statusNeutralIcon from '@/assets/status-neutral.svg';
 import { resolveGuaResult } from '@/services/guaService';
 import { useAIStore, type AIGuaStatus } from '@/stores/aiStore';
 import { useGuaStore } from '@/stores/guaStore';
@@ -27,24 +30,30 @@ const outcomeMeta: Record<GuaOutcome, { label: string; className: string }> = {
   },
 };
 
-// AI 状态用于控制徽章和解读卡片底色；吉/平/凶分别对应正向、观望、谨慎三种视觉语义。
-const aiStatusMeta: Record<AIGuaStatus, { className: string; glowClassName: string }> = {
+// AI 状态用于控制徽章、解读卡片底色和正文中的状态图标；吉/平/凶分别对应正向、观望、谨慎三种视觉语义。
+const aiStatusMeta: Record<AIGuaStatus, { className: string; glowClassName: string; icon: string }> = {
   吉: {
     className: 'bg-emerald-500 text-white shadow-emerald-500/25',
     glowClassName: 'from-emerald-100 via-white to-brand-50',
+    icon: statusGoodIcon,
   },
   平: {
     className: 'bg-amber-500 text-white shadow-amber-500/25',
     glowClassName: 'from-amber-100 via-white to-orange-50',
+    icon: statusNeutralIcon,
   },
   凶: {
     className: 'bg-rose-500 text-white shadow-rose-500/25',
     glowClassName: 'from-rose-100 via-white to-orange-50',
+    icon: statusBadIcon,
   },
 };
 
 // DeepSeek 首个 chunk 可能还没带回 [STATUS:*]，此时临时按“平”渲染，避免模板访问空 key。
 const currentAIStatus = computed<AIGuaStatus>(() => aiStore.guaStatus || '平');
+
+// 后端流式内容会把 [STATUS:吉/平/凶] 拼在正文前，页面展示时移除原始标记，改由状态图标与文字承载结果。
+const cleanAIResult = computed(() => aiStore.aiResult.replace(/^\s*\[STATUS:(吉|平|凶)\]\s*/u, ''));
 </script>
 
 <template>
@@ -109,13 +118,23 @@ const currentAIStatus = computed<AIGuaStatus>(() => aiStore.guaStatus || '平');
 
         <div class="rounded-3xl bg-gradient-to-br p-5 text-left ring-1 ring-white/90" :class="aiStatusMeta[currentAIStatus].glowClassName">
           <div class="mb-3 flex items-center justify-between gap-3">
-            <p class="text-sm font-semibold text-slate-700">AI 动态解卦</p>
+            <div class="flex items-center gap-2">
+              <p class="text-sm font-semibold text-slate-700">AI 动态解卦</p>
+              <span
+                v-if="aiStore.guaStatus"
+                class="inline-flex items-center gap-1.5 rounded-full bg-white/80 px-2.5 py-1 text-xs font-bold text-slate-700 shadow-sm ring-1 ring-white"
+              >
+                <img :src="aiStatusMeta[currentAIStatus].icon" :alt="`${currentAIStatus}卦图标`" class="h-4 w-4" />
+                {{ currentAIStatus }}
+              </span>
+            </div>
             <span v-if="aiStore.isStreaming" class="rounded-full bg-white/80 px-3 py-1 text-xs font-semibold text-brand-600 ring-1 ring-white">
               正在生成中...
             </span>
           </div>
           <p class="min-h-32 whitespace-pre-wrap leading-8 text-slate-700">
-            {{ aiStore.aiResult || 'AI 正在结合本卦、变卦和你的问题生成专属解读...' }}<span v-if="aiStore.isStreaming" class="ml-1 inline-block h-4 w-2 animate-pulse rounded-sm bg-brand-500 align-middle" />
+            {{ cleanAIResult || 'AI 正在结合本卦、变卦和你的问题生成专属解读...' }}
+            <span v-if="aiStore.isStreaming" class="ml-1 inline-block h-4 w-2 animate-pulse rounded-sm bg-brand-500 align-middle" />
           </p>
         </div>
       </template>

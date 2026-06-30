@@ -1,0 +1,22 @@
+0 verbose cli /usr/local/bin/node /usr/local/bin/npm
+1 info using npm@10.8.2
+2 info using node@v20.18.1
+3 silly config load:file:/usr/local/lib/node_modules/npm/npmrc
+4 silly config load:file:/Users/maochengcheng/Documents/code/divination/.npmrc
+5 silly config load:file:/Users/maochengcheng/.npmrc
+6 silly config load:file:/Users/maochengcheng/.npm-global/etc/npmrc
+7 verbose title npm exec edgeone -v
+8 verbose argv "exec" "--yes" "--package" "edgeone@1.6.8" "--" "edgeone" "-v"
+9 verbose logfile logs-max:10 dir:/Users/maochengcheng/Documents/code/divination/.npm-cache/_logs/2026-06-29T09_03_38_019Z-
+10 verbose logfile /Users/maochengcheng/Documents/code/divination/.npm-cache/_logs/2026-06-29T09_03_38_019Z-debug-0.log
+11 silly packumentCache heap:4345298944 maxSize:1086324736 maxEntrySize:543162368
+12 silly logfile start cleaning logs, removing 1 files
+13 silly logfile done cleaning log files
+14 http fetch GET 200 https://registry.npmjs.org/edgeone 996ms (cache revalidated)
+15 silly packumentCache heap:4345298944 maxSize:1086324736 maxEntrySize:543162368
+16 verbose cwd /Users/maochengcheng/Documents/code/divination
+17 verbose os Darwin 25.5.0
+18 verbose node v20.18.1
+19 verbose npm  v10.8.2
+20 verbose exit 1
+21 verbose code 1

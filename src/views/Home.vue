@@ -6,10 +6,10 @@ import { CalendarDays, Coins, MessagesSquare } from 'lucide-vue-next';
   <main class="mx-auto flex min-h-screen w-full max-w-[var(--app-max-width)] flex-col px-5 py-8">
     <section class="flex flex-1 flex-col justify-center gap-10">
       <header class="space-y-4 text-center">
-        <p class="text-sm font-semibold tracking-[0.32em] text-brand-600">YI JING</p>
+        <p class="text-sm font-semibold tracking-[0.32em] text-brand-600">Gua Yuan</p>
         <h1 class="text-4xl font-bold tracking-tight text-slate-900 sm:text-6xl">易经起卦</h1>
         <p class="mx-auto max-w-xl text-base leading-7 text-slate-600 sm:text-lg">
-          纯游客模式，轻量、明亮、无广告。每天三次铜钱起卦，一次每日一卦。
+          赛博朋克算命，连接DeepSeek，无广告。每天三次铜钱起卦，一次每日一卦。
         </p>
       </header>
 

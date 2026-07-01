@@ -10,4 +10,10 @@ export default defineConfig({
       '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
   },
+  // 排除不必要的目录，防止 EMFILE: too many open files 报错
+  server: {
+    watch: {
+      ignored: ['**/.npm-cache/**', '**/dist/**'],
+    },
+  },
 });

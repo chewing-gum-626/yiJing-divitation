@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 
-import jiIcon from '@/assets/images/ji.png';
+import jiIcon from '../assets/images/ji.png';
 import pingIcon from '@/assets/images/ping.png';
 import xiongIcon from '@/assets/images/xiong.png';
 import { resolveGuaResult } from '@/services/guaService';

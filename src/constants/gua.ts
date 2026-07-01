@@ -1,4 +1,4 @@
-export const DAILY_NORMAL_LIMIT = 99;
+export const DAILY_NORMAL_LIMIT = 3;
 export const DAILY_ONE_LIMIT = 1;
 
 export type CoinCombination = '3_HEADS' | '2_HEADS_1_TAIL' | '1_HEAD_2_TAILS' | '3_TAILS';
